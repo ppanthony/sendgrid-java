@@ -51,6 +51,12 @@ public class SendGrid {
     private String endpoint;
     private CloseableHttpClient client;
 
+    /**
+     * Constructor for using a username and password
+     *
+     * @param username
+     * @param password
+     */
     public SendGrid(String username, String password) {
         this.username = username;
         this.password = password;
@@ -58,6 +64,20 @@ public class SendGrid {
         this.endpoint = "/api/mail.send.json";
         this.client = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
     }
+
+    /**
+     * Constructor for using an API key
+     *
+     * @param apiKey
+     */
+    public SendGrid(String apiKey) {
+        this.password = apiKey;
+        this.username = null;
+        this.url = "https://api.sendgrid.com";
+        this.endpoint = "/api/mail.send.json";
+        this.client = HttpClientBuilder.create().setUserAgent(USER_AGENT).build();
+    }
+
 
     public SendGrid setUrl(String url) {
         this.url = url;
@@ -81,8 +101,11 @@ public class SendGrid {
     public HttpEntity buildBody(Email email) {
         MultipartEntityBuilder builder = MultipartEntityBuilder.create();
 
-        builder.addTextBody("api_user", this.username);
-        builder.addTextBody("api_key", this.password);
+        // We are using an API key
+        if (this.username != null) {
+            builder.addTextBody("api_user", this.username);
+            builder.addTextBody("api_key", this.password);
+        }
 
         String[] tos = email.getTos();
         String[] tonames = email.getToNames();
@@ -149,6 +172,11 @@ public class SendGrid {
     public SendGrid.Response send(Email email) throws SendGridException {
         HttpPost httppost = new HttpPost(this.url + this.endpoint);
         httppost.setEntity(this.buildBody(email));
+
+        // Using an API key
+        if (this.username == null) {
+            httppost.setHeader("Authorization", "Bearer " + this.password);
+        }
 
         try {
             HttpResponse res = this.client.execute(httppost);
